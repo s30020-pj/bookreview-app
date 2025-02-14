@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- Book details -->
+<div class="container mt-4">
+
+    <h1>{{ book.title }}</h1>
+
+    <hr>
+
+    <h4>Author</h4>
+
+    <h6>{{ book.author }}</h6>
+
+    <p>{{ book.author_bio }}</p>
+
+    <hr>
+
+    <h4>Summary</h4>
+
+    <p>{{ book.description }}</p>
+
+    <p>
+        <small class="text-muted">Average rating: {{ book.average_rating|floatformat:1 }}/5</small>
+    </p>
+
+    <hr>
+
+<!-- Add review form -->
+    {% if user.is_authenticated %}
+    <div class="card mb-4">
+
+        <div class="card-body">
+
+            <h5>Add Review</h5>
+
+            <form id="review-form" method="post" action="{% url 'reviews:add_review' book.id %}">
+                
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label for="rating" class="form-label">Rating</label>
+                    <select name="rating" id="rating" class="form-control" required>
+                        <option value="">Select rating...</option>
+                            
+                        {% for i in "12345" %}
+                            <option value="{{ i }}">{{ i }}</option>
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="text" class="form-label">Review</label>
+                    <textarea name="text" id="text" class="form-control" rows="3" required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Submit Review</button>
+
+            </form>
+
+            <div id="review-status" class="mt-2"></div>
+
+        </div>
+
+    </div>
+
+    {% else %}
+        <p>Login to add a review.</p>
+    {% endif %}
+
+    <!-- Reviews -->
+    <h4>Reviews</h4>
+
+    <div id="reviews">
+
+        {% for review in reviews %}
+        <div class="card mb-2">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center">
+                    
+                    <div>
+                        <h5 class="card-title">{{ review.user }}</h5>
+                        <p class="card-text">{{ review.text }}</p>
+                    </div>
+
+                    <div>
+                        <span class="badge p-3 fs-7
+                        {% if review.rating == 5 %}bg-success
+                        {% elif review.rating == 1 %}bg-danger
+                        {% else %}bg-dark
+                        {% endif %}">
+                        Rating: {{ review.rating }}/5</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="card-footer text-muted">
+                {{ review.created_at|date:"F j, Y" }}
+            </div>
+
+        </div>
+
+    {% empty %}
+        <p>No reviews found.</p>
+    {% endfor %}
+
+    </div>
+
+    <!-- Pagination -->
+    {% if reviews.has_other_pages %}
+    <nav aria-label="Review navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if reviews.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ reviews.previous_page_number }}">Previous</a>
+                </li>
+            {% endif %}
+            
+            {% for num in reviews.paginator.page_range %}
+                <li class="page-item {% if reviews.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            
+            {% if reviews.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ reviews.next_page_number }}">Next</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+</div>
+
+<!-- Add review form submission dynamically updating site with review and rating -->
+<script>
+    document.getElementById('review-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const statusDiv = document.getElementById('review-status');
+        const formData = new FormData(form);
+    
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                statusDiv.innerHTML = '<div class="alert alert-success">Review added successfully!</div>';
+                
+                // Create new review card
+                const reviewCard = `
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="card-title">${data.user}</h5>
+                                    <p class="card-text">${data.text}</p>
+                                </div>
+                                <div>
+                                    <span class="badge p-3 fs-7 ${data.rating === 5 ? 'bg-success' : data.rating === 1 ? 'bg-danger' : 'bg-dark'}">
+                                        Rating: ${data.rating}/5
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer text-muted">
+                            ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </div>
+                    </div>
+                `;
+                
+                // Check if there's a "No reviews found" message and remove it
+                const noReviewsMsg = Array.from(document.querySelectorAll('p')).find(el => el.textContent.trim() === 'No reviews found.');
+                if (noReviewsMsg) {
+                    noReviewsMsg.remove();
+                }
+                
+                // Insert new review at the top
+                document.getElementById('reviews').insertAdjacentHTML('afterbegin', reviewCard);
+                
+                // Update average rating
+                if (data.new_average) {
+                    document.querySelector('.text-muted').textContent = 
+                        `Average rating: ${parseFloat(data.new_average).toFixed(1)}/5`;
+                }
+                
+                // Reset form
+                form.reset();
+            } else {
+                statusDiv.innerHTML = '<div class="alert alert-danger">Error adding review. Please try again.</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            statusDiv.innerHTML = '<div class="alert alert-danger">An error occurred. Please try again.</div>';
+        });
+    });
+</script>
+
+{% endblock %}

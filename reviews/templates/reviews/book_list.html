@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Books</h1>
+    
+    <!-- Category filter -->
+    <div class="mb-4">
+        <form method="get" class="row g-3">
+            <div class="col-md-5">
+                <input type="text" name="search" class="form-control" placeholder="Search by title or author" value="{{ request.GET.search }}">
+            </div>
+            <div class="col-md-5">
+                <select name="category" class="form-control">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-dark w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Book list -->
+    <div class="row">
+        {% for book in books %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <a href="{% url 'reviews:book_detail' book.id %}" style="text-decoration: none; color: inherit;">
+                <div class="card-body">
+                    <h5 class="card-title">{{ book.title }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">By {{ book.author }}</h6>
+                    <p class="card-text">{{ book.description|truncatewords:30 }}</p>
+                    <p class="card-text">
+                        {% if book.average_rating == 0.0 %}
+                            <small class="text-muted">Average rating: No reviews</small>
+                        {% else %}
+                            <small class="text-muted">Average rating: {{ book.average_rating|floatformat:1 }}/5</small>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            </a>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p>No books found.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if books.has_other_pages %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if books.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ books.previous_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}">Previous</a>
+                </li>
+            {% endif %}
+            
+            {% for num in books.paginator.page_range %}
+                <li class="page-item {% if books.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if selected_category %}&category={{ selected_category }}{% endif %}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            
+            {% if books.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ books.next_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}">Next</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

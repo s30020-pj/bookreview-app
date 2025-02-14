@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{% if user.is_authenticated %}
+
+    <div class="container mt-4">
+        <h2>Add New Book</h2>
+        <form method="post" id="add_book" class="mt-4" action="{% url 'reviews:add_book_submit' %}">
+            
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label for="title" class="form-label">Title</label>
+                <input type="text" class="form-control" id="title" name="title" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="author" class="form-label">Author</label>
+                <input type="text" class="form-control" id="author" name="author" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="author_bio" class="form-label">Author Bio</label>
+                <textarea class="form-control" id="author_bio" name="author_bio" rows="3" required></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="categories" class="form-label">Categories</label>
+                <select multiple class="form-control" id="categories" name="categories">
+
+                    {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-dark">Add Book</button>
+       
+        </form>
+    </div>
+
+{% else %}
+
+    <div class="container mt-4">
+        <p>Login to add a book.</p>
+    </div>
+
+{% endif %}
+
+{% endblock %}
